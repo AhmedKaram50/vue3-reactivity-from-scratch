@@ -17,10 +17,8 @@ function track(target, key) {
       targetMap.set(target, (depsMap = new Map()));
     }
     let dep = depsMap.get(key);
-    if (!dep) {
-      depsMap.set(key, (dep = new Set()));
-      dep.add(activeEffect);
-    }
+    if (!dep) depsMap.set(key, (dep = new Set()));
+    dep.add(activeEffect);
   }
 }
 
@@ -33,7 +31,7 @@ function trigger(target, key) {
   dep.forEach((effect) => effect());
 }
 
-export function reactive(target) {
+export function reactive(target) { // Reactive Vue 3
   const handler = {
     get(target, key, receiver) {
       let result = Reflect.get(target, key, receiver);
@@ -42,7 +40,6 @@ export function reactive(target) {
     },
     set(target, key, value, receiver) {
       let oldValue = target[key];
-      // console.log(oldValue, value)
       let result = Reflect.set(target, key, value, receiver);
       if (oldValue != value) {
         trigger(target, key);
@@ -54,3 +51,37 @@ export function reactive(target) {
   return new Proxy(target, handler);
 }
 
+export function reactive_vue2(target) { // Reactive Vue 2
+  Object.keys(target).forEach(key => {
+    let value = target[key]
+    Object.defineProperty(target, key, {
+      get() {
+        track(target, key);
+        return value;
+      },
+      set(newValue) {
+        let oldValue = target[key];
+        value = newValue
+        if (oldValue != newValue) {
+          trigger(target, key);
+        }
+      }
+    })
+  })
+
+  return target
+}
+
+export function ref(raw) {
+  const r = {
+    get value() {
+      track(r, "value");
+      return raw;
+    },
+    set value(val) {
+      raw = val;
+      trigger(r, "value");
+    },
+  };
+  return r;
+}
